@@ -27,14 +27,6 @@ form_animal = 'Заполните анкету вашего подопечног
               '\n\n!!!Не забудьте прикрепить фотографию хвостатого📸'
 
 
-markup_towns_user = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-moscow_button_usr = types.InlineKeyboardButton(text='Москва🐾', callback_data='1')
-piter_button_usr = types.InlineKeyboardButton(text='Санкт-Петербург🐾', callback_data='2')
-krasnodar_button_usr = types.InlineKeyboardButton(text='Краснодар🐾', callback_data='3')
-sochi_button_usr = types.InlineKeyboardButton(text='Сочи🐾', callback_data='4')
-markup_towns_user.add(moscow_button_usr, piter_button_usr, krasnodar_button_usr, sochi_button_usr)
-
-
 # создадим кнопки для общения с пользователями
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -60,15 +52,14 @@ def chose_role(message):
             what_name(message)
 
         elif message.text == 'Я обычный пользователь\nХочу помочь хвостатым ❤️':
-            bot.send_message(message.chat.id, 'Выберите город, в котором хотите посмотреть животных:️',
-                             reply_markup=markup_towns_user)
+            chose_town(message)
 
 
 # -----------------------------------Общение с приютом------------------------------------------------
-# ОБРАБОТКА ДАННЫХ ПРИЮТА
 shelter = []
 
 
+# ОБРАБОТКА ДАННЫХ ПРИЮТА
 # обработка имени приюта
 @bot.message_handler(content_types=['text'])
 def what_name(message):
@@ -78,12 +69,12 @@ def what_name(message):
 
 @bot.message_handler(content_types=['text'])
 def check_name(message):
-    shelter.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить название✔')
     return_button = types.KeyboardButton('Изменить название️🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели название приюта.\nХотите сохранить его?', reply_markup=markup)
+    shelter.append(message.text)
     bot.register_next_step_handler(msg, add_town)
 
 
@@ -104,6 +95,7 @@ def add_town(message):
             bot.register_next_step_handler(inf_town, reg_town)
 
         elif message.text == 'Изменить название️🔁':
+            shelter.pop(-1)
             what_name(message)
 
 
@@ -131,9 +123,11 @@ def reg_town(answer):
 def write_inf(message):
     if message.chat.type == 'private':
         if message.text == 'Сохранить город✔️' or message.text == 'Изменить информацию️🔁':
-            inf_shelter = bot.send_message(message.chat.id, 'Введите информацию о вашем приюте (не забудьте указать адрес).')
+            inf_shelter = bot.send_message(message.chat.id,
+                                           'Введите информацию о вашем приюте (не забудьте указать адрес).')
             bot.register_next_step_handler(inf_shelter, reg_inf)
         elif message.text == 'Изменить город️🔁':
+            shelter.pop(-1)
             add_town(message)
 
 
@@ -144,6 +138,7 @@ def reg_inf(message):
     return_button = types.KeyboardButton('Изменить информацию️🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели информацию о приюте.\nХотите сохранить её?', reply_markup=markup)
+    shelter.append(message.text)
     bot.register_next_step_handler(msg, what_number)
 
 
@@ -152,26 +147,29 @@ def reg_inf(message):
 def what_number(message):
     if message.chat.type == 'private':
         if message.text == 'Сохранить информацию✔' or \
-                message.text == 'Сейчас исправлю'\
+                message.text == 'Сейчас исправлю' \
                 or message.text == 'Изменить телефон🔁':
             numb_shelter = bot.send_message(message.chat.id, 'Введите контактный номер телефона.')
             bot.register_next_step_handler(numb_shelter, check_phone)
         elif message.text == 'Изменить информацию️🔁':
+            shelter.pop(-1)
             write_inf(message)
 
 
 def check_phone(message):
     if re.match(r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$', message.text):
         # message.connection.cursor.execute("INSERT INTO `givemepaw`.`shelters` (`phone`) VALUES (?)", (message,))
-        shelter.append(message)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         add_button = types.KeyboardButton('Сохранить телефон✔')
         return_button = types.KeyboardButton('Изменить телефон🔁')
         markup.add(add_button, return_button)
         msg_ = bot.send_message(message.chat.id, 'Вы ввели контактный номер телефона приюта.\nХотите сохранить его?',
                                 reply_markup=markup)
+        shelter.append(message.text)
         bot.register_next_step_handler(msg_, step_for_anketa)
+        print(shelter)
     else:
+        shelter.pop(-1)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
         error_button = types.KeyboardButton('Сейчас исправлю')
         markup.add(error_button)
@@ -297,7 +295,8 @@ def reg_life_animal(message):
     add_button = types.KeyboardButton('Сохранить историю✔')
     return_button = types.KeyboardButton('Изменить историю🔁')
     markup.add(add_button, return_button)
-    msg = bot.send_message(message.chat.id, 'Вы ввели историю жизни хвостатого.\nХотите сохранить её?', reply_markup=markup)
+    msg = bot.send_message(message.chat.id, 'Вы ввели историю жизни хвостатого.\nХотите сохранить её?',
+                           reply_markup=markup)
     bot.register_next_step_handler(msg, write_requirements)
 
 
@@ -356,7 +355,7 @@ def last_step(message):
             stop_button = types.KeyboardButton('STOP')
             markup.add(role_button, add_button, stop_button)
             add_finish = bot.send_message(message.chat.id, 'Ура!!!\nВы заполнили анкету хвостатого.\n'
-                                          'Выберите следующее действие.', reply_markup=markup)
+                                                           'Выберите следующее действие.', reply_markup=markup)
             bot.register_next_step_handler(add_finish, last_step_check)
         elif message.text == 'Изменить фото🔁':
             upload_photo(message)
@@ -371,6 +370,114 @@ def last_step_check(message):
             step_for_anketa(message)
         elif message.text == 'STOP':
             bot.stop_polling(message)
+
+
+# -----------------------------------Общение с пользователем------------------------------------------------
+# Спрашиваем город
+@bot.message_handler(content_types=['text'])
+def chose_town(message):
+    markup_towns_user = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    moscow_button_usr = types.InlineKeyboardButton(text='Москва🐾', callback_data='1')
+    piter_button_usr = types.InlineKeyboardButton(text='Санкт-Петербург🐾', callback_data='2')
+    krasnodar_button_usr = types.InlineKeyboardButton(text='Краснодар🐾', callback_data='3')
+    sochi_button_usr = types.InlineKeyboardButton(text='Сочи🐾', callback_data='4')
+    markup_towns_user.add(moscow_button_usr, piter_button_usr, krasnodar_button_usr, sochi_button_usr)
+
+    inf_town = bot.send_message(message.chat.id, 'Выберите город, в котором  находится приют:️',
+                                reply_markup=markup_towns_user)
+    bot.register_next_step_handler(inf_town, show_type)
+
+
+# Спрашиваем вид животного
+@bot.message_handler(content_types=['text'])
+def show_type(message):
+    markup_view_shelter = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    dog_button_sh = types.InlineKeyboardButton(text='Собака')
+    cat_button_sh = types.InlineKeyboardButton(text='Кошка')
+    markup_view_shelter.add(dog_button_sh, cat_button_sh)
+
+    if message.chat.type == 'private':
+        if message.text == 'Москва🐾':
+            chose_view = bot.send_message(message.chat.id, 'Выберите вид животного:️',
+                                          reply_markup=markup_view_shelter)
+            bot.register_next_step_handler(chose_view, content_moscow)
+
+        elif message.text == 'Санкт-Петербург🐾':
+            chose_view = bot.send_message(message.chat.id, 'Выберите вид животного:️',
+                                          reply_markup=markup_view_shelter)
+            bot.register_next_step_handler(chose_view, content_spb)
+
+        elif message.text == 'Краснодар🐾':
+            chose_view = bot.send_message(message.chat.id, 'Выберите вид животного:️',
+                                          reply_markup=markup_view_shelter)
+            bot.register_next_step_handler(chose_view, content_krasnodar)
+
+        elif message.text == 'Сочи🐾':
+            chose_view = bot.send_message(message.chat.id, 'Выберите вид животного:️',
+                                          reply_markup=markup_view_shelter)
+            bot.register_next_step_handler(chose_view, content_sochi)
+
+
+@bot.message_handler(content_types=['text'])
+def content_moscow(message):
+    flag_city = '1'
+    if message.chat.type == 'private':
+        if message.text == 'Собака':
+            flag_type = '1'
+        elif message.text == 'Кошка':
+            flag_type = '2'
+
+    select = "SELECT name_animals, age_animals, animals.desc, animals.family " \
+             "FROM givemepaw.animals JOIN type_animals on animals.id_type = type_animals.id_type" \
+             " JOIN shelters on  shelters.id_shelter = animals.id_shelter" \
+             " JOIN city on  city.id_city = shelters.id_city WHERE city.id_city = %s"
+    with connection.cursor() as cursor:
+        cursor.executemany(select, flag_city)
+        result = cursor.fetchall()
+        for row in result:
+            name = row.get('name_animals')
+            age = row.get('age_animals')
+            desc = row.get('desc')
+            family = row.get('family')
+            f = [name, age, desc, family]
+            anketa = ''
+            space = '\n'
+            for i in range(len(f)):
+                anketa += f[i] + space
+            bot.send_message(message.chat.id, anketa)
+
+
+@bot.message_handler(content_types=['text'])
+def content_spb(message):
+    flag_city = '2'
+    if message.chat.type == 'private':
+        if message.text == 'Собака':
+            flag_type = '1'
+        elif message.text == 'Кошка':
+            flag_type = '2'
+    select = ''
+
+
+@bot.message_handler(content_types=['text'])
+def content_krasnodar(message):
+    flag_city = '3'
+    if message.chat.type == 'private':
+        if message.text == 'Собака':
+            flag_type = '1'
+        elif message.text == 'Кошка':
+            flag_type = '2'
+    select = ''
+
+
+@bot.message_handler(content_types=['text'])
+def content_sochi(message):
+    flag_city = '4'
+    if message.chat.type == 'private':
+        if message.text == 'Собака':
+            flag_type = '1'
+        elif message.text == 'Кошка':
+            flag_type = '2'
+    select = ''
 
 
 bot.polling(none_stop=True, interval=0)
