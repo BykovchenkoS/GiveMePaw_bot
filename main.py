@@ -1,10 +1,9 @@
 import telebot
 import pymysql
 import re
-import update as update
 from telebot import types
 from config import host, user, password, db_name
-from telegram.ext import CommandHandler, MessageHandler, Filters
+
 
 # привязала базу данных к проекту
 connection = pymysql.connect(
@@ -71,31 +70,42 @@ def what_number(message):
     bot.register_next_step_handler(name_shelter, check_phone)
 
 
+id_shelter = 0
+
+
 @bot.message_handler(content_types=['text'])
 def check_phone(message):
+    global id_shelter
     number = message.text
     if re.match(r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$', number):
-        select_number = "SELECT shelter_name FROM givemepaw.shelters WHERE phone = %s"
-        shelter.append(number)
-        with connection.cursor() as cursor:
-            result = cursor.execute(select_number, number)
-            if result == 1:
-                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-                anketa_button = types.KeyboardButton('Перейти к заполнению анкеты😼')
-                return_button = types.KeyboardButton('Изменить телефон🔁')
-                markup.add(anketa_button, return_button)
-                error = bot.send_message(message.chat.id, 'Ранее вы заполняли информацию о вашем приюте',
-                                         reply_markup=markup)
-                bot.register_next_step_handler(error, next_numb)
+        cursor = connection.cursor()
+        sql_count = "SELECT COUNT(*)  as count FROM givemepaw.shelters WHERE phone = %s"
+        select_id = cursor.execute(sql_count, number)
+        count_shelter = cursor.fetchone()['count']
+        print(id_shelter)
+        if count_shelter > 0:
+            sql_shelter = "SELECT id_shelter FROM givemepaw.shelters WHERE phone = %s"
+            select_id = cursor.execute(sql_shelter, number)
+            id_shelter = cursor.fetchone()['id_shelter']
+            shelter.append(number)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+            anketa_button = types.KeyboardButton('Перейти к заполнению анкеты😼')
+            return_button = types.KeyboardButton('Изменить телефон🔁')
+            markup.add(anketa_button, return_button)
+            error = bot.send_message(message.chat.id, 'Ранее вы заполняли информацию о вашем приюте',
+                                     reply_markup=markup)
+            bot.register_next_step_handler(error, next_numb)
+            return id_shelter
 
-            elif result == 0:
-                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-                add_button = types.KeyboardButton('Сохранить телефон✔')
-                return_button = types.KeyboardButton('Изменить телефон🔁')
-                markup.add(add_button, return_button)
-                msg_ = bot.send_message(message.chat.id, 'Вы ввели контактный номер телефона приюта.'
-                                                         '\nХотите сохранить его?', reply_markup=markup)
-                bot.register_next_step_handler(msg_, next_numb)
+        else:
+            shelter.append(message.text)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+            add_button = types.KeyboardButton('Сохранить телефон✔')
+            return_button = types.KeyboardButton('Изменить телефон🔁')
+            markup.add(add_button, return_button)
+            msg_ = bot.send_message(message.chat.id, 'Вы ввели контактный номер телефона приюта.'
+                                                     '\nХотите сохранить его?', reply_markup=markup)
+            bot.register_next_step_handler(msg_, next_numb)
 
     else:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
@@ -191,59 +201,14 @@ def write_inf(message):
 
 
 def reg_inf(message):
-    shelter.append(message)
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить информацию✔')
     return_button = types.KeyboardButton('Изменить информацию️🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели информацию о приюте.\nХотите сохранить её?', reply_markup=markup)
-    shelter.append(message.text)
     bot.register_next_step_handler(msg, step_for_anketa)
-
-
-# обработка номера телефона шелтера
-# @bot.message_handler(content_types=['text'])
-# def what_number(message):
-#     if message.chat.type == 'private':
-#         if message.text == 'Сохранить информацию✔' or \
-#                 message.text == 'Сейчас исправлю' \
-#                 or message.text == 'Изменить телефон🔁':
-#             numb_shelter = bot.send_message(message.chat.id, 'Введите контактный номер телефона.')
-#             bot.register_next_step_handler(numb_shelter, check_phone)
-#         elif message.text == 'Изменить информацию️🔁':
-#             shelter.pop(-1)
-#             write_inf(message)
-#
-
-# def check_phone(message):
-#     if re.match(r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$', message.text):
-#         # message.connection.cursor.execute("INSERT INTO `givemepaw`.`shelters` (`phone`) VALUES (?)", (message,))
-#         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-#         add_button = types.KeyboardButton('Сохранить телефон✔')
-#         return_button = types.KeyboardButton('Изменить телефон🔁')
-#         markup.add(add_button, return_button)
-#         msg_ = bot.send_message(message.chat.id, 'Вы ввели контактный номер телефона приюта.\nХотите сохранить его?',
-#                                 reply_markup=markup)
-#         shelter.append(message.text)
-#         bot.register_next_step_handler(msg_, step_for_anketa)
-#         print(shelter)
-#     else:
-#         shelter.pop(-1)
-#         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-#         error_button = types.KeyboardButton('Сейчас исправлю')
-#         markup.add(error_button)
-#         error = bot.send_message(message.chat.id, 'Номер должен содержать только цифры!', reply_markup=markup)
-#         bot.register_next_step_handler(error, what_number)
-
-
-# загружаем шелтера в базу данных
-# def insert_shelter():
-#     print(shelter)
-#     sql = "INSERT INTO `givemepaw`.`shelters` (`shelter_name`, `id_city`, `desc_shelter`, `phone`)
-#     VALUES (%s, %s, %s, %s)"
-#     cursor = db_mysql.
-#     cursor.executemany(sql, shelter)
-#     connection.commit()
+    shelter.append(message.text)
 
 
 # АНКЕТА ЖИВОТНОГО
@@ -255,7 +220,7 @@ def step_for_anketa(message):
     if message.chat.type == 'private':
         if message.text == 'Сохранить информацию✔' \
                 or message.text == 'Добавить ещё анкету' \
-                    or message.text == 'Перейти к заполнению анкеты😼':
+                or message.text == 'Перейти к заполнению анкеты😼':
             markup_anketa_shelter = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             yes_button_sh = types.InlineKeyboardButton(text='Да!')
             no_button_sh = types.InlineKeyboardButton(text='Нет')
@@ -265,13 +230,15 @@ def step_for_anketa(message):
                                             reply_markup=markup_anketa_shelter)
             bot.register_next_step_handler(chose_anketa, what_view)
 
-        elif message.text == 'Изменить телефон🔁':
-            what_number(message)
+        elif message.text == 'Изменить информацию️🔁':
+            shelter.pop(-1)
+            write_inf(message)
 
 
 # Спрашиваем вид животного
 @bot.message_handler(content_types=['text'])
 def what_view(message):
+    global id_shelter
     if message.chat.type == 'private':
         if message.text == 'Да!' or 'Изменить вид️🔁':
             markup_view_shelter = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -285,15 +252,30 @@ def what_view(message):
         elif message.text == 'Нет':
             bot.stop_polling()
 
+    select_sh = "INSERT INTO `givemepaw`.`shelters` (`phone`, `shelter_name`, `id_city`, `desc_shelter`)" \
+                " VALUES (%s, %s, %s, %s);"
+    cursor = connection.cursor()
+    cursor.executemany(select_sh, [shelter])
+    connection.commit()
+
+    id_shelter = 0
+    select_number = "SELECT id_shelter FROM givemepaw.shelters WHERE phone = %s"
+    select_id = cursor.execute(select_number, shelter[0])
+    id_shelter = cursor.fetchone()['id_shelter']
+
 
 @bot.message_handler(content_types=['text'])
 def check_view(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить вид✔')
     return_button = types.KeyboardButton('Изменить вид️🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы выбрали вид животного.\nХотите сохранить его?', reply_markup=markup)
+
+    if message.text == 'Собака':
+        animal.append(1)
+    elif message.text == 'Кошка':
+        animal.append(2)
     bot.register_next_step_handler(msg, write_name_animal)
 
 
@@ -309,12 +291,12 @@ def write_name_animal(message):
 
 
 def reg_name_animal(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить кличку✔')
     return_button = types.KeyboardButton('Изменить кличку🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели кличку животного.\nХотите сохранить её?', reply_markup=markup)
+    animal.append(message.text)
     bot.register_next_step_handler(msg, write_age)
 
 
@@ -326,16 +308,16 @@ def write_age(message):
             add_name_animal = bot.send_message(message.chat.id, 'Введите возраст.')
             bot.register_next_step_handler(add_name_animal, reg_age_animal)
         elif message.text == 'Изменить кличку🔁':
-            write_name_animal(message)
+            write_name_animal(message.text)
 
 
 def reg_age_animal(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить возраст✔')
     return_button = types.KeyboardButton('Изменить возраст🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели возраст животного.\nХотите сохранить его?', reply_markup=markup)
+    animal.append(message.text)
     bot.register_next_step_handler(msg, write_life)
 
 
@@ -351,13 +333,13 @@ def write_life(message):
 
 
 def reg_life_animal(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить историю✔')
     return_button = types.KeyboardButton('Изменить историю🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы ввели историю жизни хвостатого.\nХотите сохранить её?',
                            reply_markup=markup)
+    animal.append(message.text)
     bot.register_next_step_handler(msg, write_requirements)
 
 
@@ -373,13 +355,13 @@ def write_requirements(message):
 
 
 def reg_requirements(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить требования✔')
     return_button = types.KeyboardButton('Изменить требования🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы указали требования к будущим владельцам.'
                                             '\nХотите сохранить их?', reply_markup=markup)
+    animal.append(message.text)
     bot.register_next_step_handler(msg, upload_photo)
 
 
@@ -395,13 +377,13 @@ def upload_photo(message):
 
 
 def check_photo(message):
-    animal.append(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
     add_button = types.KeyboardButton('Сохранить фото✔')
     return_button = types.KeyboardButton('Изменить фото🔁')
     markup.add(add_button, return_button)
     msg = bot.send_message(message.chat.id, 'Вы загрузили фото хвостатого.'
                                             '\nХотите сохранить его?', reply_markup=markup)
+    animal.append(message.text)
     bot.register_next_step_handler(msg, last_step)
 
 
@@ -424,6 +406,7 @@ def last_step(message):
 
 @bot.message_handler(content_types=['text'])
 def last_step_check(message):
+    global id_shelter
     if message.chat.type == 'private':
         if message.text == 'Выбор роли':
             chose_role(message)
@@ -431,6 +414,19 @@ def last_step_check(message):
             step_for_anketa(message)
         elif message.text == 'STOP':
             bot.stop_polling(message)
+
+        # загружаем животное в базу данных
+        animal.append(id_shelter)
+
+        test_select = "INSERT INTO `givemepaw`.`animals` " \
+                      "( `age_animals`, `id_shelter`) " \
+                      "VALUES (%s, %s);"
+        select_animal = "INSERT INTO `givemepaw`.`animals` " \
+                        "(`id_type`, `name_animals`, `age_animals`, `desc`, `family`, `foto_url`, `id_shelter`) " \
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s);"
+        cursor = connection.cursor()
+        cursor.executemany(select_animal, [animal])
+        connection.commit()
 
 
 # -----------------------------------Общение с пользователем------------------------------------------------
@@ -516,7 +512,6 @@ def content_spb(message):
             flag_type = '1'
         elif message.text == 'Кошка':
             flag_type = '2'
-    select = ''
 
 
 @bot.message_handler(content_types=['text'])
@@ -527,7 +522,6 @@ def content_krasnodar(message):
             flag_type = '1'
         elif message.text == 'Кошка':
             flag_type = '2'
-    select = ''
 
 
 @bot.message_handler(content_types=['text'])
@@ -538,7 +532,6 @@ def content_sochi(message):
             flag_type = '1'
         elif message.text == 'Кошка':
             flag_type = '2'
-    select = ''
 
 
 bot.polling(none_stop=True, interval=0)
