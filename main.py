@@ -4,14 +4,15 @@ import re
 from telebot import types
 import boto3
 import os
-from db_mysql import connection
+
+import config
+import db_mysql
 from config import host, user, password, db_name
 
 bot = telebot.TeleBot('5250939994:AAE3SyKrxgfxX4dlRWyJUeznzTyEzuOJyEE')
 
 global cursor
 
-global connection
 
 src = ""
 url_foto = "https://givemepaw.obs.ru-moscow-1.hc.sbercloud.ru/"
@@ -21,18 +22,7 @@ url_foto = "https://givemepaw.obs.ru-moscow-1.hc.sbercloud.ru/"
 @bot.message_handler(commands=['start'])
 def start(message):
     global cursor
-    global connection
-
-    # привязала базу данных к проекту
-    connection = pymysql.connect(
-        host=host,
-        port=3306,
-        user=user,
-        password=password,
-        database=db_name,
-        cursorclass=pymysql.cursors.DictCursor
-    )
-    cursor = connection.cursor()
+    cursor = db_mysql.connection.cursor()
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     hello_button = types.KeyboardButton('👋 Привет!')
     markup.add(hello_button)
@@ -43,13 +33,13 @@ def start(message):
 @bot.message_handler(commands=['stop'])
 def stop(message):
     global cursor
-    global connection
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     hello_button = types.KeyboardButton('/start')
     markup.add(hello_button)
     bot.send_message(message.chat.id, 'До скорых встреч!😴', reply_markup=markup)
     cursor.close()
-    connection.close()
+    db_mysql.connection.close()
 
 
 @bot.message_handler(content_types=['text'])
@@ -288,7 +278,6 @@ def step_for_anketa(message):
 def what_view(message):
     global id_shelter
     global cursor
-    global connection
 
     if message.chat.type == 'private':
         if message.text == '/stop':
@@ -317,9 +306,9 @@ def what_view(message):
 
             select_sh = "INSERT INTO `givemepaw`.`shelters` (`phone`, `shelter_name`, `id_city`, `desc_shelter`)" \
                         " VALUES (%s, %s, %s, %s);"
-            cursor = connection.cursor()
+            cursor = db_mysql.connection.cursor()
             cursor.executemany(select_sh, [shelter])
-            connection.commit()
+            db_mysql.connection.commit()
 
         elif message.text == '/stop':
             stop(message=message)
@@ -516,7 +505,7 @@ def last_step_check(message):
                     "VALUES (%s, %s, %s, %s, %s, %s);"
 
     cursor.executemany(select_animal, [animal])
-    connection.commit()
+    db_mysql.connection.commit()
     sber_cloud()
 
     if message.chat.type == 'private':
@@ -535,18 +524,9 @@ def last_step_check(message):
 # -----------------------------------Sber cloud------------------------------------------------
 def sber_cloud():
     global src
-    global connection
     global cursor
     global id_shelter
-    session = boto3.Session(
-        aws_access_key_id='GELVNJU1QH5CFGCSPJLK',
-        aws_secret_access_key='ets2ACj0UQDHZs4gWANWddNQVYYfZySVcMA0t78Z'
-    )
-    s3 = session.client(
-        service_name='s3',
-        endpoint_url='https://obs.ru-moscow-1.hc.sbercloud.ru')
 
-    print('sber', id_shelter)
     sql_id_an = "SELECT max(id_animals) as id_animals FROM givemepaw.animals where id_shelter = %s " \
                 "ORDER BY date_edit desc"
     select_id_animal = cursor.execute(sql_id_an, id_shelter)
@@ -554,8 +534,8 @@ def sber_cloud():
     target_foto = str(id_shelter) + '/' + str(id_animal) + '_0.jpg'
 
     # Загрузить объекты в корзину из строки
-    s3.upload_file(src, 'givemepaw', target_foto,
-                   ExtraArgs={'ContentType': "image/jpeg;charset=UTF-8", 'ACL': "public-read"})
+    config.s3.upload_file(src, 'givemepaw', target_foto,
+                          ExtraArgs={'ContentType': "image/jpeg;charset=UTF-8", 'ACL': "public-read"})
     # Удаляем из tmp
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), src)
     os.remove(path)
@@ -564,7 +544,7 @@ def sber_cloud():
     add_sql_url = "UPDATE `givemepaw`. `animals` SET `foto_url` = %s WHERE(`id_animals` = %s)"
     sql_url = [target_foto, id_animal]
     cursor.executemany(add_sql_url, [sql_url])
-    connection.commit()
+    db_mysql.connection.commit()
 
 
 # -----------------------------------Общение с пользователем------------------------------------------------
@@ -625,7 +605,7 @@ def show_animals(flag_city, flag_type, message):
              "FROM givemepaw.animals JOIN type_animals on animals.id_type = type_animals.id_type" \
              " JOIN shelters on  shelters.id_shelter = animals.id_shelter" \
              " JOIN city on  city.id_city = shelters.id_city WHERE city.id_city = %s AND animals.id_type= %s"
-    with connection.cursor() as cursor:
+    with db_mysql.connection.cursor() as cursor:
         cursor.executemany(select, [flag])
         result = cursor.fetchall()
         for row in result:
