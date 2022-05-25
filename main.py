@@ -295,6 +295,16 @@ def what_view(message):
             select_id = cursor.execute(select_number, shelter[0])
             id_shelter = cursor.fetchone()['id_shelter']
 
+        elif message.text == 'Изменить вид️🔁':
+            animal.pop(-1)
+            markup_view_shelter = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+            dog_button_sh = types.InlineKeyboardButton(text='Собака🐶')
+            cat_button_sh = types.InlineKeyboardButton(text='Кошка🐱')
+            markup_view_shelter.add(dog_button_sh, cat_button_sh)
+            chose_view = bot.send_message(message.chat.id, 'Выберите вид животного:️',
+                                          reply_markup=markup_view_shelter)
+            bot.register_next_step_handler(chose_view, check_view)
+
         elif message.text == 'Да!' or 'Изменить вид️🔁':
             markup_view_shelter = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             dog_button_sh = types.InlineKeyboardButton(text='Собака🐶')
@@ -304,6 +314,7 @@ def what_view(message):
                                           reply_markup=markup_view_shelter)
             bot.register_next_step_handler(chose_view, check_view)
 
+            print(shelter)
             select_sh = "INSERT INTO `givemepaw`.`shelters` (`phone`, `shelter_name`, `id_city`, `desc_shelter`)" \
                         " VALUES (%s, %s, %s, %s);"
             cursor = db_mysql.connection.cursor()
@@ -336,12 +347,14 @@ def check_view(message):
 # Спрашиваем кличку
 @bot.message_handler(content_types=['text'])
 def write_name_animal(message):
+
     if message.chat.type == 'private':
-        if message.text == 'Сохранить вид✔' or message.text == 'Изменить кличку🔁':
+        if message.text == 'Сохранить вид✔' or 'Изменить кличку🔁':
             add_name_animal = bot.send_message(message.chat.id, 'Введите кличку✏️')
             bot.register_next_step_handler(add_name_animal, reg_name_animal)
+
         elif message.text == 'Изменить вид️🔁':
-            what_view(message)
+            what_view(message.text)
 
         elif message.text == '/stop':
             stop(message=message)
