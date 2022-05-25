@@ -10,7 +10,7 @@
 В классе [`main`](C:\Users\sonyb\PycharmProjects\givemepaw_bot\main.py) представлены функции для реализации бота. Также здесь содержатся обращения к базе данных, в которой хранятся анкеты приютов и животных, 
 и к облаку, в котором хранятся фотографии животных (в базе данных расположены только url на фото).
 
-Класс [`confi`](C:\Users\sonyb\PycharmProjects\givemepaw_bot\config.py) содержит некоторые ключи для подключения к базе данных и облаку.
+Класс [`config`](C:\Users\sonyb\PycharmProjects\givemepaw_bot\config.py) содержит некоторые ключи для подключения к базе данных и облаку.
 
 В классе [`db_mysql`](C:\Users\sonyb\PycharmProjects\givemepaw_bot\db_mysql.py) соединяем базу данных с проектом.
 
